@@ -56,14 +56,16 @@ library(maps) #maps
 
 Load data
 ```{r}
-air_visits <- read_csv('./air_visit_data.csv', col_types = cols())
-air_reserve <- read_csv('./air_reserve.csv', col_types = cols())
-air_store <- read_csv("./air_store_info.csv", col_types = cols())
-date_info <- read_csv('./date_info.csv', col_types = cols())
-hpg_reserve <- read_csv('./hpg_reserve.csv', col_types = cols())
-hpg_store_info <- read_csv('./hpg_store_info.csv', col_types = cols())
-test <- read_csv('./sample_submission.csv', col_types = cols())
-store_id <- read_csv('./store_id_relation.csv', col_types = cols())
+rpath <- "../R EDA - Restaurant Forecasting/data/"
+
+air_visits <- read_csv(str_c(rpath, "air_visit_data.csv.zip"), col_types = cols())
+air_reserve <- read_csv(str_c(rpath, "air_reserve.csv.zip"), col_types = cols())
+air_store <- read_csv(str_c(rpath, "air_store_info.csv.zip"), col_types = cols())
+date_info <- read_csv(str_c(rpath, "date_info.csv.zip"), col_types = cols())
+hpg_reserve <- read_csv(str_c(rpath, "hpg_reserve.csv.zip"), col_types = cols())
+hpg_store_info <- read_csv(str_c(rpath, "hpg_store_info.csv.zip"), col_types = cols())
+test <- read_csv(str_c(rpath, "sample_submission.csv.zip"), col_types = cols())
+store_id <- read_csv(str_c(rpath, "./store_id_relation.csv.zip"), col_types = cols())
 ```
 
 
