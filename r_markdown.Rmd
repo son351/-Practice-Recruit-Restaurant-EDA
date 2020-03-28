@@ -69,3 +69,321 @@ store_id <- read_csv(str_c(rpath, "./store_id_relation.csv.zip"), col_types = co
 ```
 
 
+```{r}
+# Define multiple plot function
+#
+# ggplot objects can be passed in ..., or to plotlist (as a list of ggplot objects)
+# - cols:   Number of columns in layout
+# - layout: A matrix specifying the layout. If present, 'cols' is ignored.
+#
+# If the layout is something like matrix(c(1,2,3,3), nrow=2, byrow=TRUE),
+# then plot 1 will go in the upper left, 2 will go in the upper right, and
+# 3 will go all the way across the bottom.
+#
+multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
+  # Make a list from the ... arguments and plotlist
+  plots <- c(list(...), plotlist)
+  numPlots = length(plots)
+  # If layout is NULL, then use 'cols' to determine layout
+  if (is.null(layout)) {
+    # Make the panel
+    # ncol: Number of columns of plots
+    # nrow: Number of rows needed, calculated from # of cols
+    layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
+                    ncol = cols, nrow = ceiling(numPlots/cols))
+  }
+ if (numPlots==1) {
+    print(plots[[1]])
+  } else {
+    # Set up the page
+    grid.newpage()
+    pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+    # Make each plot, in the correct location
+    for (i in 1:numPlots) {
+      # Get the i,j matrix positions of the regions that contain this subplot
+      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
+      print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
+                                      layout.pos.col = matchidx$col))
+    }
+  }
+}
+```
+
+
+View file structure and content
+```{r}
+# AIR VISITS
+summary(air_visits)
+glimpse(air_visits)
+air_visits %>% distinct(air_visits$air_store_id) %>% nrow()
+```
+
+```{r}
+# AIR RESERVE
+summary(air_reserve)
+glimpse(air_reserve)
+air_reserve %>% distinct(air_reserve$air_store_id) %>% nrow()
+```
+
+```{r}
+# HPG RESERVE 
+summary(hpg_reserve)
+glimpse(hpg_reserve)
+hpg_reserve %>% distinct(hpg_reserve$hpg_store_id) %>% nrow()
+```
+
+```{r}
+# AIR STORE
+summary(air_store)
+glimpse(air_store)
+```
+
+```{r}
+# HPG STORE 
+summary(hpg_store_info)
+glimpse(hpg_store_info)
+```
+
+```{r}
+# CHECK MISSING VALUES
+sum(is.na(air_store))
+sum(is.na(air_reserve))
+sum(is.na(hpg_reserve))
+sum(is.na(hpg_store_info))
+sum(is.na(store_id))
+sum(is.na(test))
+```
+
+```{r}
+# REFORMAT DATETIME 
+air_visits <- air_visits %>% 
+  mutate(visit_date = ymd_hms(visit_date))
+
+air_reserve <- air_reserve %>% 
+  mutate(visit_datetime = ymd_hms(visit_datetime),
+         reserve_datetime = ymd_hms(reserve_datetime)) 
+
+hpg_reserve <- hpg_reserve %>% 
+  mutate(visit_datetime = ymd_hms(visit_datetime),
+         reserve_datetime = ymd_hms(reserve_datetime))
+
+air_store <- air_store %>% 
+  mutate(air_genre_name = as.factor(air_genre_name),
+         air_area_name = as.factor(air_area_name))
+
+hpg_store_info <- hpg_store_info %>% 
+  mutate(hpg_genre_name = as.factor(hpg_genre_name),
+         hpg_area_name = as.factor(hpg_area_name))
+```
+
+```{r split=FALSE, fig.align = 'default', warning = FALSE, fig.cap ="Fig. 1", out.width="100%"}
+# AIR VISITS
+# PLOT TOTAL NUMBER OF VISITORS PER DAY
+p1 <- air_visits %>%
+  group_by(visit_date) %>%
+  summarise(all_visitors = sum(visitors)) %>%
+  ggplot(aes(visit_date, all_visitors)) +
+  geom_line() +
+  labs(x = "All visitors", y = "Date")
+
+p2 <- air_visits %>%
+  ggplot(aes(visitors)) +
+  geom_vline(xintercept = 20, color = "orange") +
+  geom_histogram(fill = "blue", bins = 30) +
+  scale_x_log10()
+
+p3 <- air_visits %>%
+  mutate(wday = wday(visit_date, label = TRUE, week_start = 1)) %>%
+  group_by(wday) %>%
+  summarise(visits = median(visitors)) %>%
+  ggplot(aes(wday, visits, fill = wday)) +
+  geom_col() +
+  theme(legend.position = "none", axis.text.x  = element_text(angle=45, hjust=1, vjust=0.9)) +
+  labs(x = "Day of the week", y = "Median visitors") +
+  scale_fill_hue()
+
+p4 <- air_visits %>%
+  mutate(month = month(visit_date, label = TRUE)) %>%
+  group_by(month) %>%
+  summarise(visits = median(visitors)) %>%
+  ggplot(aes(month, visits, fill = month)) +
+  geom_col() +
+  theme(legend.position = "none") +
+  labs(x = "Month", y = "Median visitors")
+
+layout <- matrix(c(1,1,1,1,2,3,4,4),2,4,byrow=TRUE)
+multiplot(p1, layout=layout)
+```
+
+```{r}
+air_visits %>%
+  filter(visit_date > ymd("2016-04-15") & visit_date < ymd("2016-06-15")) %>%
+  group_by(visit_date) %>%
+  summarise(all_visitors = sum(visitors)) %>%
+  ggplot(aes(visit_date,all_visitors)) +
+  geom_line() +
+  geom_smooth(method = "loess", color = "blue", span = 1/7) +
+  labs(y = "All visitors", x = "Date")
+```
+
+```{r}
+# AIR RESERVATIONS
+
+foo <- air_reserve %>%
+  mutate(reserve_date = date(reserve_datetime),
+         reserve_hour = hour(reserve_datetime),
+         reserve_wday = wday(reserve_datetime, label = TRUE, week_start = 1),
+         visit_date = date(visit_datetime),
+         visit_hour = hour(visit_datetime),
+         visit_wday = wday(visit_datetime, label = TRUE, week_start = 1),
+         diff_hour = time_length(visit_datetime - reserve_datetime, unit = "hour"),
+         diff_day = time_length(visit_datetime - reserve_datetime, unit = "day")
+         )
+
+p1 <- foo %>%
+  group_by(visit_date) %>%
+  summarise(all_visitors = sum(reserve_visitors)) %>%
+  ggplot(aes(visit_date, all_visitors)) +
+  geom_line() +
+  labs(x = "'air' visit date")
+
+p2 <- foo %>%
+  group_by(visit_hour) %>%
+  summarise(all_visitors = sum(reserve_visitors)) %>%
+  ggplot(aes(visit_hour, all_visitors)) +
+  geom_col(fill = "blue")
+
+p3 <- foo %>%
+  filter(diff_hour < 24*5) %>%
+  group_by(diff_hour) %>%
+  summarise(all_visitors = sum(reserve_visitors)) %>%
+  ggplot(aes(diff_hour, all_visitors)) +
+  geom_col(fill = "blue") +
+  labs(x = "Time from reservation to visit [hours]")
+
+layout <- matrix(c(1,1,2,3),2,2,byrow=TRUE)
+multiplot(p1, p2, p3, layout=layout)
+```
+
+```{r}
+# HPG RESERVATIONS
+foo <- hpg_reserve %>% 
+  mutate(reserve_date = date(reserve_datetime),
+         reserve_hour = hour(reserve_datetime),
+         visit_date = date(visit_datetime),
+         visit_hour = hour(visit_datetime),
+         diff_hour = time_length(visit_datetime - reserve_datetime, unit = "hour"),
+         diff_day = time_length(visit_datetime - reserve_datetime, unit = "day"))
+
+p1 <- foo %>% 
+  group_by(visit_date) %>% 
+  summarise(all_visitors = sum(reserve_visitors)) %>%
+  ggplot(aes(visit_date, all_visitors)) + 
+  geom_line(col = "black") +
+  labs(x = "'hpg' visit date")
+
+p2 <- foo %>% 
+  group_by(visit_hour) %>%
+  summarise(all_visitors = sum(reserve_visitors)) %>%
+  ggplot(aes(visit_hour, all_visitors)) + 
+  geom_col(fill = "red")
+
+p3 <- foo %>%
+  filter(diff_hour < 24*5) %>%
+  group_by(diff_hour) %>% 
+  summarise(all_visitors = sum(reserve_visitors)) %>% 
+  ggplot(aes(diff_hour, all_visitors)) + 
+  geom_col(fill = "red") + 
+  labs(x = "Time from reservation to visit [hours]")
+
+layout <- matrix(c(1,1,2,3), 2, 2, byrow = TRUE)
+multiplot(p1, p2, p3, layout = layout)
+```
+
+```{r}
+# AIR STORE
+# USING MAP with LEAFLET package, includes very cool interactive maps
+leaflet(air_store) %>%
+  addTiles() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addMarkers(~longitude, ~latitude,
+             popup = ~air_store_id, label = ~air_genre_name,
+             clusterOptions = markerClusterOptions())
+```
+
+```{r}
+# PLOT THE NUMBER OF DIFFERENT TYPES OF CUISINES ALONGSIDE THE AREAS WITH THE MOST AIR RESTAURANTS
+p1 <- air_store %>%
+  group_by(air_genre_name) %>%
+  count() %>%
+  ggplot(aes(reorder(air_genre_name, n, FUN = min), n, fill = air_genre_name)) + 
+  geom_col() +
+  coord_flip() + 
+  theme(legend.position = "none") + 
+  labs(x = "Type of cuisine", y = "Number of air restaurants")
+
+p2 <- air_store %>%
+  group_by(air_area_name) %>%
+  count() %>%
+  ungroup() %>%
+  top_n(15, n) %>%
+  ggplot(aes(reorder(air_area_name, n, FUN = min), n, fill = air_area_name)) +
+  geom_col() +
+  coord_flip() +
+  theme(legend.position = "none") +
+  labs(x = "Top 15 areas", y = "Number of air restaurants")
+
+layout <- matrix(c(1, 2), 2, 1, byrow = TRUE)
+multiplot(p1, p2, layout = layout)
+```
+
+```{r}
+# HPG Store --- Add interactive map
+leaflet(hpg_store_info) %>%
+  addTiles() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addMarkers(~longitude, ~latitude, 
+             popup = ~hpg_store_id, label = ~hpg_genre_name,
+             clusterOptions = markerClusterOptions())
+```
+
+```{r}
+# Plot hpg genre and area for hpg restaurants
+p1 <- hpg_store_info %>%
+  group_by(hpg_genre_name) %>%
+  count() %>%
+  ggplot(aes(reorder(hpg_genre_name, n, FUN = min), n, fill = hpg_genre_name)) + 
+  geom_col() + 
+  coord_flip() + 
+  theme(legend.position = "none") +
+  labs(x = "Type of cuisine (hpg_genre_name)", y = "Number of hpg restaurants")
+
+p2 <- hpg_store_info %>%
+  mutate(area = str_sub(hpg_area_name, 1, 20)) %>%
+  group_by(area) %>%
+  count() %>% 
+  ungroup() %>%
+  top_n(15, n) %>%
+  ggplot(aes(reorder(area, n, FUN = min), n, fill = area)) +
+  geom_col() +
+  coord_flip() +
+  theme(legend.position = "none") +
+  labs(x = "Top 15 areas (hpg_area_name", y = "Number of hpg restaurants")
+
+layout <- matrix(c(1,2), 1, 2, byrow = TRUE)
+multiplot(p1, p2, layout = layout)
+```
+
+```{r}
+
+```
+
+
+
+
+
+
+
+
+
+
