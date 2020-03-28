@@ -375,7 +375,30 @@ multiplot(p1, p2, layout = layout)
 ```
 
 ```{r}
-
+# The following plot visualises the time range of the train vs test data sets.
+foo <- air_visits %>%
+  rename(date = visit_date) %>%
+  distinct(date = as.Date(as.POSIXct(date))) %>%
+  mutate(dset = "train")
+bar <- test %>%
+  separate(id, c("foo", "bar", "date"), sep = "_") %>%
+  mutate(date = ymd(date)) %>%
+  distinct(date) %>%
+  mutate(dset = "test")
+foo <- foo %>%
+  bind_rows(bar) %>%
+  mutate(year = year(date))
+year(foo$date) <- 2017
+foo %>%
+  filter(!is.na(date)) %>%
+  mutate(year = fct_relevel(as.factor(year), c("2017","2016"))) %>%
+  ggplot(aes(date, year, color = dset)) +
+  geom_point(shape = "|", size = 10) +
+  scale_x_date(date_labels = "%B", date_breaks = "1 month") +
+  #scale_y_reverse() +
+  theme(legend.position = "bottom", axis.text.x  = element_text(angle=45, hjust=1, vjust=0.9)) +
+  labs(color = "Data set") +
+  guides(color = guide_legend(override.aes = list(size = 4, pch = 15)))
 ```
 
 
